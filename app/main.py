@@ -11,6 +11,9 @@ st.set_page_config(page_title="Credit Default Interactive Dashboard", layout="wi
 
 st.title("Credit Default Interactive Dashboard")
 
+from utils import render_sidebar
+render_sidebar()
+
 #create sidebar
 
 def render_sidebar():
@@ -24,6 +27,16 @@ def render_sidebar():
         st.page_link("pages/1_EDA.py", label="EDA Tool")
         st.page_link("pages/2_Model.py", label="Model evaluation")
         st.page_link("pages/3_Dashboard.py", label="Business Dashboard")
+
+        st.divider()
+        st.markdown("**Model Info**")
+        st.metric("AUC", "0.7813", delta="+0.1013")
+        st.metric("Gini", "0.5627")
+        
+        st.divider()
+        col1, col2 = st.columns(2)
+        col1.metric("Train", "84,274")
+        col2.metric("Test", "36,084")
 
 
 
