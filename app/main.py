@@ -35,7 +35,7 @@ def render_sidebar():
         st.markdown("FNB Dataquest 2026")
         st.divider()
         st.markdown("**Navigation**")
-        st.page_link("main.py", label="🏠 Home")
+        st.page_link("main.py", label="🏠 Overview")
         st.page_link("pages/EDA.py", label="📊 EDA Tool")
         st.page_link("pages/Model.py", label="🎯 Model Evaluation")
         st.page_link("pages/Dashboard.py", label="💰 Business Dashboard")

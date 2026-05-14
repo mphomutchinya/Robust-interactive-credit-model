@@ -32,7 +32,7 @@ def render_sidebar():
         st.markdown("FNB Dataquest 2026")
         st.divider()
         st.markdown("**Navigation**")
-        st.page_link("main.py",            label="🏠 Home")
+        st.page_link("main.py",            label="🏠 Overview")
         st.page_link("pages/EDA.py",       label="📊 EDA Tool")
         st.page_link("pages/Model.py",     label="🎯 Model Evaluation")
         st.page_link("pages/Dashboard.py", label="💰 Business Dashboard")
@@ -48,4 +48,12 @@ def render_sidebar():
 render_sidebar()
 
 
-st.title("EDA Tool")
+st.title("Exploratory Data Analysis Tool")
+st.markdown("Explore the relationship between features and their effects on defaulting")
+
+tabs1, tabs2, tabs3, tab4 = st.tabs(["Univariate", "Bivariate", "Default Rate", "Explore (Raw Data)"])
+
+if Univariate.open:
+
+    left, right = st.columns(2, border = True)
+
