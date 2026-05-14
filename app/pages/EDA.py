@@ -90,7 +90,7 @@ with tabs1:
 
         #Histogram
         if plot_type == "Histogram":
-            sns.histplot(df_engineered[features], kde = True, color = "#2563EB")
+            sns.histplot(df_engineered[selected_feature], kde = True, color = "#2563EB")
             
 
         
