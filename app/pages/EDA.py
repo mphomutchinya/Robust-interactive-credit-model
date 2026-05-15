@@ -6,7 +6,7 @@ import numpy as np
 import sys, os
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
-df_engineered = pd.read_csv("C:/Users/mutch_lf652j0/Credit Score Interactive Model/data/processed/engineered_train.csv")
+df_cleaned = pd.read_csv("C:/Users/mutch_lf652j0/Credit Score Interactive Model/data/processed/cleaned_train.csv")
 
 st.set_page_config(page_title="EDA Tool", layout="wide")
 
@@ -267,24 +267,27 @@ st.markdown("Explore the relationship between features and their effects on defa
 tabs1, tabs2, tabs3, tab4 = st.tabs(["Univariate", "Bivariate", "Default Rate", "Explore (Raw Data)"])
 
 features = ['age',
- 'employment_length_years',
- 'num_open_accounts',
- 'credit_utilisation_pct',
- 'interest_rate',
- 'months_since_last_delinquency',
- 'pct_accounts_current',
- 'missing_annual_income',
- 'missing_months_since_last_delinquency',
- 'credit_history_to_age',
- 'hard_inquiries_delinquencies',
- 'rate_dti_burden',
- 'rate_to_age',
- 'log_annual_income',
- 'log_loan_amount',
- 'log_total_revolving_balance',
- 'log_interest_to_income',
- 'log_num_hard_inquiries_6mo',
- 'log_num_delinquencies_2yr']
+    'annual_income',
+    'employment_length_years',
+    'home_ownership',
+    'region',
+    'num_open_accounts',
+    'num_delinquencies_2yr',
+    'total_revolving_balance',
+    'credit_utilisation_pct',
+    'months_since_oldest_account',
+    'num_hard_inquiries_6mo',
+    'loan_amount',
+    'interest_rate',
+    'loan_purpose',
+    'dti_ratio',
+    'months_since_last_delinquency',
+    'pct_accounts_current',
+    'application_dow',
+    'email_domain_type',
+    'default_flag',
+    'missing_annual_income',
+    'missing_months_since_last_delinquency']
 
 with tabs1:
 
@@ -294,7 +297,7 @@ with tabs1:
 
         selected_feature = st.selectbox("Select a feature", features)
 
-        plot_type = st.selectbox("Choose plot type", ["Histogram", "KDE plot", "Box plot"])
+        plot_type = st.selectbox("Choose plot type", ["Histogram", "KDE plot", "Box plot", "Default Overlay"])
 
     with right_col:
 
@@ -302,14 +305,46 @@ with tabs1:
 
         #Histogram
         if plot_type == "Histogram":
-            sns.histplot(df_engineered[selected_feature], kde = True, color = "#F58220")
+            sns.histplot(df_cleaned[selected_feature], kde = True, color = "#F58220")
         #KDE
         elif plot_type == "KDE plot":
-            sns.kdeplot(df_engineered[selected_feature], color = "#F58220", fill=True)
+            sns.kdeplot(df_cleaned[selected_feature], color = "#F58220", fill=True)
         #Boxplot
         elif plot_type == "Box plot":
-            sns.boxplot(df_engineered[selected_feature], color = "#F58220", fill=True)
-        
+            sns.boxplot(df_cleaned[selected_feature], color = "#F58220", fill=True)
+        #Default overlay
+        elif plot_type == "Default Overlay":
+            default_dist = df_cleaned[df_cleaned["default_flag"] == 1][selected_feature]
+            nondefault_dist = df_cleaned[df_cleaned["default_flag"] == 0][selected_feature]
+
+            if df_cleaned[selected_feature].dtype == "object" or df_cleaned[selected_feature].nunique() <= 10:
+                default_rate = df_cleaned.groupby(selected_feature)["default_flag"].mean().sort_values()
+                ax.barh(default_rate.index.astype(str), default_rate.values, color="#F58220", alpha=0.8)
+                ax.axvline(df_cleaned["default_flag"].mean(), color="#00d084", linestyle="--", label="Overall avg")
+                ax.set_xlabel("Default Rate")
+                ax.legend(facecolor="#111827", labelcolor="white", edgecolor="#374151")
+            else:
+                sns.kdeplot(default_dist, color="#F58220", fill=True, alpha=0.3, label="Default", ax=ax)
+                sns.kdeplot(nondefault_dist, color="#00d084", fill=True, alpha=0.3, label="Non-Default", ax=ax)
+                ax.legend(facecolor="#111827", labelcolor="white", edgecolor="#374151")
 
         st.pyplot(fig)
+
+        if plot_type == "Default Overlay":
+
+            if df_cleaned[selected_feature].dtype == "object":
+                st.markdown("#### Value Counts")
+                st.dataframe(df_cleaned[selected_feature].value_counts().reset_index()
+                            .rename(columns={selected_feature: "Category", "count": "Count"}))
+         
+            else:
+
+                default_mean = default_dist.mean()
+                nondefault_mean = nondefault_dist.mean()
+                difference = default_mean - nondefault_mean
+
+                mean1, mean2, d = st.columns(3)
+                mean1.metric(f"Default Mean",  f"{default_mean:.2f}")
+                mean2.metric(f"Non Default Mean", f"{nondefault_mean:.2f}")
+                d.metric(f"Difference", f"{difference:.2f}")
 
