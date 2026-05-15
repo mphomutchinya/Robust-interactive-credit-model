@@ -54,17 +54,17 @@ div[data-baseweb="select"] > div {
     font-weight: 600;
 }
 
-.stButton > button:hover {
-    background-color: #ff9a3c !important;
-    color: white !important;
-}
-
 /* Metric Cards */
 [data-testid="metric-container"] {
     background-color: #111827;
     border: 1px solid #F58220;
     padding: 15px;
     border-radius: 12px;
+}
+
+.stButton > button:hover {
+    background-color: #ff9a3c !important;
+    color: white !important;
 }
 
 /* Tabs */
@@ -347,4 +347,49 @@ with tabs1:
                 mean1.metric(f"Default Mean",  f"{default_mean:.2f}")
                 mean2.metric(f"Non Default Mean", f"{nondefault_mean:.2f}")
                 d.metric(f"Difference", f"{difference:.2f}")
+
+with tabs2: 
+
+    left, right = st.columns(2, border = True)
+
+    with left:
+
+        featurex = st.selectbox("Select X variable", features, key="x_feature")
+        featurey = st.selectbox("Select Y variable", features, key="y_feature")
+
+        if (pd.api.types.is_numeric_dtype(df_cleaned[featurex]) and pd.api.types.is_numeric_dtype(df_cleaned[featurey])):
+    
+            biplot_type = st.selectbox("Choose plot type", ["Scatter Plot", "Hexbin Plot"])
+
+        elif ((df_cleaned[featurex].dtype == "object" and df_cleaned[featurey].dtype == "float64") or df_cleaned[featurex].dtype == "float64" and df_cleaned[featurey].dtype == "object"):
+    
+            biplot_type = st.selectbox("Choose plot type", ["Violin Plot", "Box Plot"])
+        
+        elif(df_cleaned[featurex].dtype == "object" and df_cleaned[featurey].dtype == "object"):
+
+            biplot_type = st.selectbox("Choose plot type", ["Contingency Table", "Heatmap"])
+
+
+#For scatterplot, we will use a sample since the data is too large
+
+        df_cleaned_sample = df_cleaned.sample(n = 2000, random_state = 42)
+        
+    with right:
+
+        fig, ax = plt.subplots(figsize = (6,4))
+
+        #Scatterplot
+        ax.scatter(df_cleaned_sample[featurex], df_cleaned_sample[featurey])
+        ax.set_xlabel(featurex)
+        ax.set_ylabel(featurey)
+        ax.set_title(f"{featurex} vs {featurey}")
+
+
+        st.pyplot(fig)
+
+
+
+
+
+
 
