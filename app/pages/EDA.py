@@ -293,7 +293,8 @@ with tabs1:
     with left_col:
 
         selected_feature = st.selectbox("Select a feature", features)
-        plot_type = st.selectbox("Choose plot type", ["Histogram", "KDE plot", "Box plot", "Pie chart"])
+
+        plot_type = st.selectbox("Choose plot type", ["Histogram", "KDE plot", "Box plot"])
 
     with right_col:
 
@@ -301,9 +302,14 @@ with tabs1:
 
         #Histogram
         if plot_type == "Histogram":
-            sns.histplot(df_engineered[selected_feature], kde = True, color = "#2563EB")
-            
-
+            sns.histplot(df_engineered[selected_feature], kde = True, color = "#F58220")
+        #KDE
+        elif plot_type == "KDE plot":
+            sns.kdeplot(df_engineered[selected_feature], color = "#F58220", fill=True)
+        #Boxplot
+        elif plot_type == "Box plot":
+            sns.boxplot(df_engineered[selected_feature], color = "#F58220", fill=True)
         
+
         st.pyplot(fig)
 
