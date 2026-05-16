@@ -249,6 +249,7 @@ def render_sidebar():
         st.markdown("**Navigation**")
         st.page_link("main.py", label="Overview")
         st.page_link("pages/EDA.py", label="EDA Tool")
+        st.page_link("pages/PD_NewClient.py", label= "Probability of Default New Client")
         st.page_link("pages/Model.py", label="Model Evaluation")
         st.page_link("pages/Dashboard.py", label="Business Dashboard")
         st.divider()

@@ -9,6 +9,7 @@ import sys, os
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
 df_cleaned = pd.read_csv("C:/Users/mutch_lf652j0/Credit Score Interactive Model/data/processed/cleaned_train.csv")
+df_raw = pd.read_csv("C:/Users/mutch_lf652j0/Credit Score Interactive Model/data/raw/loan_book.csv")
 
 st.set_page_config(page_title="EDA Tool", layout="wide")
 
@@ -249,6 +250,7 @@ def render_sidebar():
         st.markdown("**Navigation**")
         st.page_link("main.py",            label="Overview")
         st.page_link("pages/EDA.py",       label="EDA Tool")
+        st.page_link("pages/PD_NewClient.py", label= "Probability of Default New Client")
         st.page_link("pages/Model.py",     label="Model Evaluation")
         st.page_link("pages/Dashboard.py", label="Business Dashboard")
         st.divider()
@@ -266,7 +268,7 @@ render_sidebar()
 st.title("Exploratory Data Analysis Tool")
 st.markdown("Explore the relationship between features and their effects on defaulting")
 
-tabs1, tabs2, tabs3, tab4 = st.tabs(["Univariate", "Bivariate", "Default Rate", "Explore (Raw Data)"])
+tabs1, tabs2, tabs3, tabs4 = st.tabs(["Univariate", "Bivariate", "Default Rate", "Data Quality(Raw)"])
 
 features = ['age',
     'annual_income',
@@ -374,7 +376,7 @@ with tabs2:
         
         elif(df_cleaned[featurex].dtype == "object" and df_cleaned[featurey].dtype == "object"):
 
-            biplot_type = st.selectbox("Choose plot type", ["Contingency Table", "Heatmap"])
+            biplot_type = st.selectbox("Choose plot type", ["Heatmap"])
 
 
 #For scatterplot, we will use a sample since the data is too large
@@ -425,10 +427,22 @@ with tabs2:
 
             st.caption("Showing a random sample of 2000 records")
 
-        if biplot_type == "Violin Plot":
+        elif biplot_type == "Violin Plot":
             sns.violinplot(data = df_cleaned, x=featurex, y=featurey, color="#F58220", ax=ax)
             ax.set_xlabel(featurex)
             ax.set_ylabel(featurey)
+            ax.set_title(f"{featurex} vs {featurey}")
+
+        elif biplot_type == "Box Plot":
+            sns.boxplot(data = df_cleaned, x = featurex, y = featurey, color = "#F58220", ax=ax)
+            ax.set_xlabel(featurex)
+            ax.set_ylabel(featurey)
+            ax.set_title(f"{featurex} vs {featurey}")
+
+        elif biplot_type == "Heatmap":
+            contingency = pd.crosstab(df_cleaned[featurex], df_cleaned[featurey], 
+                normalize="index")
+            sns.heatmap(contingency, annot=True, fmt=".2f", cmap="Oranges", ax=ax)
             ax.set_title(f"{featurex} vs {featurey}")
 
         st.pyplot(fig)
@@ -439,6 +453,109 @@ with tabs2:
             col1, col2 = st.columns(2)
             col1.metric("Pearson Correlation", f"{pearson_r:.3f}")
             col2.metric("Spearman Correlation", f"{spearman_r:.3f}")
+
+with tabs3:
+
+    left_cols, right_cols = st.columns(2, border = True)
+
+    with left_cols:
+
+        variable = st.selectbox("Select a feature", features, key = "tab3 feature")
+        n_bins = st.slider("Number of bins", min_value=3, max_value=15, value=5, key="tab3_bins")
+
+    with right_cols:
+
+        fig, ax = plt.subplots(figsize=(6, 4))
+        if df_cleaned[variable].dtype == "object":  
+            encoded = df_cleaned[variable].astype("category").cat.codes
+        else:
+            encoded = df_cleaned[variable]
+
+        # Bin the feature
+        df_temp = df_cleaned[["default_flag"]].copy()
+        df_temp["binned"] = pd.cut(encoded, bins=n_bins)
+        default_rate = df_temp.groupby("binned", observed=True)["default_flag"].mean()
+        counts = df_temp.groupby("binned", observed=True)["default_flag"].count()
+
+        bars = ax.bar(range(len(default_rate)), default_rate.values, color="#F58220", alpha=0.8)
+        ax.axhline(df_cleaned["default_flag"].mean(), color="#00d084", 
+            linestyle="--", linewidth=1.5, label="Overall avg")
+        ax.set_xticks(range(len(default_rate)))
+        ax.set_xticklabels([str(b) for b in default_rate.index], rotation=45, ha="right", fontsize=7)
+        ax.set_ylabel("Default Rate")
+        ax.set_title(f"Default Rate by {variable} bins")
+        ax.legend(facecolor="#111827", labelcolor="white", edgecolor="#374151")
+        ax.yaxis.set_major_formatter(plt.FuncFormatter(lambda x, _: f"{x:.0%}"))
+
+        st.pyplot(fig)
+
+        # Metrics
+        highest_bin = default_rate.idxmax()
+        lowest_bin = default_rate.idxmin()
+
+        m1, m2, m3 = st.columns(3)
+        m1.metric("Overall Default Rate", f"{df_cleaned['default_flag'].mean():.2%}")
+        m2.metric("Highest Risk Bin",     f"{default_rate.max():.2%}")
+        m3.metric("Lowest Risk Bin",      f"{default_rate.min():.2%}")
+
+        # Table
+        st.markdown("#### Bin Summary")
+        summary = pd.DataFrame({
+            "Bin":          default_rate.index.astype(str),
+            "Default Rate": default_rate.values,
+            "Count":        counts.values
+        })
+        summary["Default Rate"] = summary["Default Rate"].apply(lambda x: f"{x:.2%}")
+        st.dataframe(summary, use_container_width=True)
+        
+with tabs4:
+
+    k1, k2, k3, k4 = st.columns(4)
+
+    k1.metric("Total Rows", f"{len(df_raw):,}")
+    k2.metric("Total Columns", f"{df_raw.shape[1]:,}")
+    k3.metric("Duplicate Rows",   f"{df_raw.duplicated().sum():,}")
+    k4.metric("Columns with Nulls", f"{df_raw.isnull().any().sum()}")
+
+    st.divider()
+
+    left_col, right_col = st.columns(2, border=True)
+
+    with left_col:
+        st.markdown("#### Missing Values by Column")
+
+        missing_data = df_raw.isnull().sum()
+        missing_percentage = (missing_data[missing_data>0] / df_raw.shape[0]) * 100
+        missing_percentage.sort_values(ascending = True, inplace = True)
+
+        #plot chart
+        fig, ax = plt.subplots(figsize = (8,6))
+        ax.barh(missing_percentage.index, missing_percentage, color = "#F58220")
+
+        # Annotate the values and indexes
+        for i, (value, name) in enumerate(zip(missing_percentage, missing_percentage.index)):
+            ax.text(value+0.5, i, f"{value:.2f}%", ha='left', va='center', fontweight='bold', fontsize=18, color='black')
+
+        ax.set_xlim([0, 50])
+
+        plt.title("Percentage of Missing Values", fontweight='bold', fontsize=22)
+        plt.xlabel('Percentages (%)', fontsize=16)
+        st.pyplot(fig)
+
+    with right_col:
+        
+        st.markdown("#### Column Summary")
+        summary = pd.DataFrame({
+            "Column":   df_raw.columns,
+            "Type":     df_raw.dtypes.astype(str).values,
+            "Nulls":    df_raw.isnull().sum().values,
+            "Unique":   df_raw.nunique().values,
+            "Mean":     df_raw.mean(numeric_only=True).reindex(df_raw.columns).round(2).values
+        })
+        st.dataframe(summary, use_container_width=True, hide_index=True)
+
+
+
 
 
 
