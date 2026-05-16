@@ -280,4 +280,7 @@ with colu2:
     loan_amount = st.number_input("Loan Amount", min_value = 0, value = 10000)
     interest_rate = st.number_input("Interest Rate (%)", min_value = 0, value = 10)
     dit_ratio = st.number_input("Debt to income Ratio", min_value = 0, value = 0.6)
+
+with colu3:
+    st.markdown("### Credit History")
     
