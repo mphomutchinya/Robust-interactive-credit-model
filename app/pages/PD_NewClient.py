@@ -262,3 +262,22 @@ def render_sidebar():
         col2.metric("Test",  "36,084")
 
 render_sidebar()
+
+st.title("Probability of Default")
+st.markdown("Enter client details to predict the Probability of Default")
+
+colu1, colu2, colu3 = st.columns(3, border = True)
+
+with colu1: 
+
+    st.markdown("#### Personal Details")
+    age = st.number_input("Age", min_value = 18, max_value = 100, value = 30)
+    annual_income = st.number_input("Annual Income", min_value = 0, value = 20000)
+    employment_length = st.number_input("Employment Length", min_value = 0, value = 10)
+    
+with colu2:
+    st.markdown("#### Loan Details")
+    loan_amount = st.number_input("Loan Amount", min_value = 0, value = 10000)
+    interest_rate = st.number_input("Interest Rate (%)", min_value = 0, value = 10)
+    dit_ratio = st.number_input("Debt to income Ratio", min_value = 0, value = 0.6)
+    
