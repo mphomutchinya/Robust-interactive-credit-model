@@ -3,6 +3,8 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
 import numpy as np
+import scipy.stats as stats
+from sklearn.linear_model import LinearRegression
 import sys, os
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
@@ -245,10 +247,10 @@ def render_sidebar():
         st.markdown("FNB Dataquest 2026")
         st.divider()
         st.markdown("**Navigation**")
-        st.page_link("main.py",            label="🏠 Overview")
-        st.page_link("pages/EDA.py",       label="📊 EDA Tool")
-        st.page_link("pages/Model.py",     label="🎯 Model Evaluation")
-        st.page_link("pages/Dashboard.py", label="💰 Business Dashboard")
+        st.page_link("main.py",            label="Overview")
+        st.page_link("pages/EDA.py",       label="EDA Tool")
+        st.page_link("pages/Model.py",     label="Model Evaluation")
+        st.page_link("pages/Dashboard.py", label="Business Dashboard")
         st.divider()
         st.markdown("**Model Info**")
         st.metric("AUC", "0.7813", delta="+0.1013")
@@ -357,9 +359,14 @@ with tabs2:
         featurex = st.selectbox("Select X variable", features, key="x_feature")
         featurey = st.selectbox("Select Y variable", features, key="y_feature")
 
+
         if (pd.api.types.is_numeric_dtype(df_cleaned[featurex]) and pd.api.types.is_numeric_dtype(df_cleaned[featurey])):
     
             biplot_type = st.selectbox("Choose plot type", ["Scatter Plot", "Hexbin Plot"])
+
+            if biplot_type in ["Scatter Plot","Hexbin Plot"]:
+                show_regression = st.checkbox("Fit linear regression line")
+                remove_outliers = st.checkbox("Remove outliers (99th percentile)")
 
         elif ((df_cleaned[featurex].dtype == "object" and df_cleaned[featurey].dtype == "float64") or df_cleaned[featurex].dtype == "float64" and df_cleaned[featurey].dtype == "object"):
     
@@ -372,20 +379,70 @@ with tabs2:
 
 #For scatterplot, we will use a sample since the data is too large
 
-        df_cleaned_sample = df_cleaned.sample(n = 2000, random_state = 42)
         
     with right:
+        fig, ax = plt.subplots(figsize=(6, 4))
 
-        fig, ax = plt.subplots(figsize = (6,4))
+        if biplot_type == "Scatter Plot":
+            df_cleaned_sample = df_cleaned.sample(n=2000, random_state=42)
 
-        #Scatterplot
-        ax.scatter(df_cleaned_sample[featurex], df_cleaned_sample[featurey])
-        ax.set_xlabel(featurex)
-        ax.set_ylabel(featurey)
-        ax.set_title(f"{featurex} vs {featurey}")
+            if remove_outliers:
+                q99x = df_cleaned_sample[featurex].quantile(0.99)
+                q99y = df_cleaned_sample[featurey].quantile(0.99)
+                df_cleaned_sample = df_cleaned_sample[
+                (df_cleaned_sample[featurex] <= q99x) &
+                (df_cleaned_sample[featurey] <= q99y)
+            ]
 
+            ax.scatter(df_cleaned_sample[featurex], df_cleaned_sample[featurey],
+                   color="#F58220", alpha=0.4)
+            ax.set_xlabel(featurex)
+            ax.set_ylabel(featurey)
+            ax.set_title(f"{featurex} vs {featurey}")
+        
+            st.caption("Showing a random sample of 2000 records")
+
+            if show_regression:
+                X = df_cleaned_sample[[featurex]].values
+                y = df_cleaned_sample[featurey].values
+                model = LinearRegression()
+                model.fit(X, y)
+                x_line = np.linspace(X.min(), X.max(), 100).reshape(-1, 1)
+                y_line = model.predict(x_line)
+                ax.plot(x_line, y_line, color="#00d084", linewidth=2,
+                    label=f"Linear fit (R²={model.score(X, y):.3f})")
+                ax.legend(facecolor="#111827", labelcolor="white", edgecolor="#374151")
+                
+
+        elif biplot_type == "Hexbin Plot":
+            df_cleaned_sample = df_cleaned.sample(n=2000, random_state=42)
+            hb = ax.hexbin(df_cleaned_sample[featurex], df_cleaned_sample[featurey],
+                gridsize=30, cmap="Oranges")
+            fig.colorbar(hb, ax=ax, label="Count")
+            ax.set_xlabel(featurex)
+            ax.set_ylabel(featurey)
+            ax.set_title(f"{featurex} vs {featurey}")
+
+            st.caption("Showing a random sample of 2000 records")
+
+        if biplot_type == "Violin Plot":
+            sns.violinplot(data = df_cleaned, x=featurex, y=featurey, color="#F58220", ax=ax)
+            ax.set_xlabel(featurex)
+            ax.set_ylabel(featurey)
+            ax.set_title(f"{featurex} vs {featurey}")
 
         st.pyplot(fig)
+
+        if biplot_type in ["Scatter Plot", "Hexbin Plot"]:
+            pearson_r = df_cleaned[[featurex, featurey]].corr().iloc[0, 1]
+            spearman_r = df_cleaned[[featurex, featurey]].corr(method="spearman").iloc[0, 1]
+            col1, col2 = st.columns(2)
+            col1.metric("Pearson Correlation", f"{pearson_r:.3f}")
+            col2.metric("Spearman Correlation", f"{spearman_r:.3f}")
+
+
+
+
 
 
 
