@@ -4,7 +4,19 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 import numpy as np
 import sys, os
+from joblib import load
+from sklearn.linear_model import LogisticRegression
+from sklearn.metrics import (roc_auc_score, roc_curve, confusion_matrix, classification_report, ConfusionMatrixDisplay)
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
+
+model_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "models", "logistic_regression_v2.pkl")
+model = load(model_path)
+
+df_test = pd.read_csv("C:/Users/mutch_lf652j0/Credit Score Interactive Model/data/processed/engineered_test.csv")
+
+X_test = df_test.drop(columns = ["default_flag"])
+y_test = df_test["default_flag"]
+y_pred_proba = model.predict_proba(X_test)[:, 1]
 
 st.set_page_config(page_title="Model Evaluation", layout="wide")
 
@@ -261,3 +273,109 @@ def render_sidebar():
 render_sidebar()
 
 st.title("Model Evaluation")
+
+st.markdown("Evaluation of the model and the performance")
+
+auc_score = roc_auc_score(y_test, y_pred_proba)
+gini = 2 * auc_score - 1
+auc_lift = auc_score - 0.68
+
+e1,e2,e3,e4 = st.columns(4)
+
+e1.metric(label="AUC Score", value=f"{auc_score:.4f}")
+e2.metric(label="Gini Coefficient", value=f"{gini:.4f}")
+e3.metric(label="Benchmark AUC", value="0.6800")
+e4.metric(label="AUC Lift", value=f"{auc_lift:.4f}")
+
+tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs(["Performance", "Threshold analysis", "Feature effects", "Risk Separation", "Model equation", "Benchmarking"])
+
+with tab1:
+
+    fpr, tpr, _ = roc_curve(y_test, y_pred_proba)
+    fig, ax = plt.subplots(figsize=(4.5, 4.5))
+    ax.plot(fpr, tpr, color='darkorange', lw=2, label=f'ROC curve (AUC = {auc_score:.4f})')
+    ax.plot([0, 1], [0, 1], color='navy', lw=2, linestyle='--', label='Random Classifier')
+    ax.set_xlabel('False Positive Rate')
+    ax.set_ylabel('True Positive Rate')
+    ax.set_title('ROC Logistic Regression')
+    ax.legend(loc='lower right')
+    fig.tight_layout()
+
+    col1, col2, = st.columns([1, 2])
+
+    with col1:
+    
+        st.pyplot(fig, use_container_width=True)
+
+    with col2:
+
+        score1, score2 = st.columns(2)
+
+        ks = np.max(tpr - fpr)
+
+        score1.metric(label="AUC Score", value=f"{auc_score:.4f}")
+        score2.metric(label="KS Statistic", value=f"{ks:.4f}")
+
+        st.divider()
+
+        st.markdown("AUC measures how well the model can distinguish between different classes, a score of 0.7867 provides significant value in separating the classes.")
+        st.markdown("KS statistic measures the separation power of the model, values above 40 % can indicate strong predictive power.")
+
+with tab2:
+
+    colss1, colss2 = st.columns(2, border = True)
+
+    with colss1:
+        
+        thresh = st.slider("Decision Threshold", min_value=0.0, max_value=1.0, value=0.3, step=0.01)
+        st.write("Determines the probability threshold at which a client is classified as default")
+
+    with colss2:
+
+        y_pred_thresh = (y_pred_proba >= thresh).astype(int)
+
+        cm = confusion_matrix(y_test, y_pred_thresh)
+        tn, fp, fn, tp = cm.ravel()
+        
+        st.markdown("#### Confusion Matrix")
+        cm_df = pd.DataFrame(
+            [[tp, fp], [fn, tn]],
+            index=["Actual Default", "Actual Non-Default"],
+            columns=["Predicted Default", "Predicted Non-Default"]
+        )
+        st.dataframe(cm_df, use_container_width=True)
+
+        st.divider()
+
+        # Precision, Recall, F1
+        st.markdown("#### Classification Metrics")
+        precision = tp / (tp + fp + 1e-9)
+        recall    = tp / (tp + fn + 1e-9)
+        f1        = 2 * (precision * recall) / (precision + recall + 1e-9)
+
+        m1, m2, m3 = st.columns(3)
+        m1.metric("Precision", f"{precision:.2%}")
+        m2.metric("Recall",    f"{recall:.2%}")
+        m3.metric("F1 Score",  f"{f1:.2%}")
+
+        st.divider()
+
+        
+        st.markdown("#### Business Interpretation")
+        if precision > recall:
+            st.info(
+                f"**Conservative policy** — At threshold {thresh:.2f}, the model is more precise "
+                f"but misses more defaulters. Fewer false alarms but higher credit risk exposure. "
+                f"Best when the cost of approving a bad loan is high."
+            )
+        else:
+            st.warning(
+                f"**Aggressive policy** — At threshold {thresh:.2f}, the model catches more "
+                f"defaulters but flags more good clients incorrectly. Higher rejection rate "
+                f"but lower credit risk. Best when the cost of a bad loan is very high."
+            )
+            
+with tab3:
+
+    
+
