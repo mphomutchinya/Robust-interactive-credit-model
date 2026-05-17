@@ -330,7 +330,6 @@ calculatepd = st.button("Calculate probability of Default")
 if calculatepd:
 
     #engineered features in training model
-    missing_annual_income = 0
     credit_history_to_age = months_since_oldest_account / (age *12)
     hard_inquiries_delinquencies_raw = num_hard_inquiries * num_delinquencies
     hard_inquiries_delinquencies = pd.cut(
@@ -352,7 +351,7 @@ if calculatepd:
     log_num_delinquencies_2yr   = np.log1p(num_delinquencies)
 
 
-input_df = pd.DataFrame([{"age": age,
+    input_df = pd.DataFrame([{"age": age,
         "employment_length_years": employment_length,
         "num_open_accounts": num_open_accounts,
         "credit_utilisation_pct": credit_utilisation,
@@ -374,4 +373,51 @@ input_df = pd.DataFrame([{"age": age,
     }])
 
 
-pd_score = model.predict_proba(input_df)[0][1]
+    pd_score = model.predict_proba(input_df)[0][1]
+
+    res1, res2 = st.columns(2, border=True)
+
+    with res1:
+
+        st.markdown("#### Probability of Default")
+        st.metric("PD Score", f"{pd_score:.2%}")
+        st.progress(pd_score, text=f"PD: {pd_score:.2%}")
+
+    with res2:
+
+        st.markdown("#### Basel III Internal Risk Grade")
+
+        if pd_score < 0.02:
+            st.success("Grade A — Prime Credit Quality")
+
+        elif pd_score < 0.05:
+            st.info("Grade B — Acceptable Risk")
+
+        elif pd_score < 0.15:
+            st.warning("Grade C — Subprime Risk")
+
+        elif pd_score < 0.30:
+            st.warning("Grade D — High Default Risk")
+
+        else:
+            st.error("Grade E — Default / Non-Performing Exposure")
+
+        st.markdown("#### Expected Credit Loss (ECL)")
+
+        #assumptions
+        lgd = 0.45
+        ead = loan_amount
+
+        # ECL calculation
+        ecl = pd_score * lgd * ead
+
+        st.metric(
+            "Expected Credit Loss",
+            f"R{ecl:,.2f}"
+        )
+
+        st.caption(
+            f"Calculated using PD={pd_score:.2%}, "
+            f"LGD={lgd:.0%}, "
+            f"EAD=R{ead:,.0f}"
+        )
