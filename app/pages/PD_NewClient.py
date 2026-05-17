@@ -279,8 +279,21 @@ with colu2:
     st.markdown("#### Loan Details")
     loan_amount = st.number_input("Loan Amount", min_value = 0, value = 10000)
     interest_rate = st.number_input("Interest Rate (%)", min_value = 0, value = 10)
-    dit_ratio = st.number_input("Debt to income Ratio", min_value = 0, value = 0.6)
+    dit_ratio = st.number_input("Debt to income Ratio", min_value = 0.0, value = 0.6)
 
 with colu3:
-    st.markdown("### Credit History")
-    
+    st.markdown("#### Credit History")
+    num_open_accounts = st.number_input("Number of Open Accounts", min_value = 0, value = 5 )
+    credit_utilisation= st.number_input("Credit Utilisation(%)", min_value = 0, max_value = 100, value = 20)
+    months_last_delinquency = st.number_input("Months Since Last Delinquency", min_value=0, value=0)
+    pct_accounts_current = st.number_input("% Accounts Current", min_value=0.0, max_value=100.0, value=95.0)
+    total_revolving_balance = st.number_input("Total Revolving Balance", min_value=0, value=5000)
+    num_hard_inquiries = st.number_input("Hard Inquiries (6mo)", min_value=0, value=1)
+    num_delinquencies = st.number_input("Delinquencies (2yr)", min_value=0, value=0)
+
+st.divider()
+
+calculatepd = st.button("Calculate probability of Default")
+
+
+
