@@ -7,17 +7,12 @@ import scipy.stats as stats
 from sklearn.linear_model import LinearRegression
 import sys, os
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
+from joblib import load
 import pickle
 import os
 
-model_path = os.path.join(
-    os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 
-    "models", 
-    "logistic_regression.pkl"
-)
-
-with open(model_path, "rb") as f:
-    model = pickle.load(f)
+model_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "models", "logistic_regression_v2.pkl")
+model = load(model_path)
 
 df_cleaned = pd.read_csv("C:/Users/mutch_lf652j0/Credit Score Interactive Model/data/processed/cleaned_train.csv")
 
