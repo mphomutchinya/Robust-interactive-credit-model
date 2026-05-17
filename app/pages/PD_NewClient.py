@@ -7,6 +7,17 @@ import scipy.stats as stats
 from sklearn.linear_model import LinearRegression
 import sys, os
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
+import pickle
+import os
+
+model_path = os.path.join(
+    os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 
+    "models", 
+    "logistic_regression.pkl"
+)
+
+with open(model_path, "rb") as f:
+    model = pickle.load(f)
 
 df_cleaned = pd.read_csv("C:/Users/mutch_lf652j0/Credit Score Interactive Model/data/processed/cleaned_train.csv")
 
@@ -268,32 +279,99 @@ st.markdown("Enter client details to predict the Probability of Default")
 
 colu1, colu2, colu3 = st.columns(3, border = True)
 
-with colu1: 
-
+with colu1:
     st.markdown("#### Personal Details")
-    age = st.number_input("Age", min_value = 18, max_value = 100, value = 30)
-    annual_income = st.number_input("Annual Income", min_value = 0, value = 20000)
-    employment_length = st.number_input("Employment Length", min_value = 0, value = 10)
+    age = st.number_input("Age", min_value=18, max_value=100, value=30)
+    employment_length = st.number_input("Employment Length (years)", min_value=0, max_value=50, value=5)
+    
+    no_income_data = st.checkbox("Annual income unknown", key="income_checkbox")
+    
+    if no_income_data:
+        df_cleaned["emp_bin"] = pd.cut(df_cleaned["employment_length_years"], bins=5)
+        emp_bin = pd.cut(
+            [employment_length],
+            bins=pd.cut(df_cleaned["employment_length_years"], bins=5).cat.categories,
+            include_lowest=True
+        )[0]
+        group_median = df_cleaned.groupby("emp_bin", observed=True)["annual_income"].median()
+        annual_income = float(group_median[emp_bin])
+        missing_annual_income = 1
+    else:
+        annual_income = st.number_input("Annual Income", min_value=0.0, value=20000.0)
+        missing_annual_income = 0
     
 with colu2:
     st.markdown("#### Loan Details")
     loan_amount = st.number_input("Loan Amount", min_value = 0, value = 10000)
     interest_rate = st.number_input("Interest Rate (%)", min_value = 0, value = 10)
-    dit_ratio = st.number_input("Debt to income Ratio", min_value = 0.0, value = 0.6)
+    dti_ratio = st.number_input("Debt to income Ratio", min_value = 0.0, value = 0.6)
 
 with colu3:
     st.markdown("#### Credit History")
     num_open_accounts = st.number_input("Number of Open Accounts", min_value = 0, value = 5 )
     credit_utilisation= st.number_input("Credit Utilisation(%)", min_value = 0, max_value = 100, value = 20)
-    months_last_delinquency = st.number_input("Months Since Last Delinquency", min_value=0, value=0)
     pct_accounts_current = st.number_input("% Accounts Current", min_value=0.0, max_value=100.0, value=95.0)
     total_revolving_balance = st.number_input("Total Revolving Balance", min_value=0, value=5000)
     num_hard_inquiries = st.number_input("Hard Inquiries (6mo)", min_value=0, value=1)
     num_delinquencies = st.number_input("Delinquencies (2yr)", min_value=0, value=0)
+    months_since_oldest_account = st.number_input("Months Since Oldest Account", min_value=0, value=120)
+    no_delinquency_history = st.checkbox("No delinquency history")
+    if no_delinquency_history:
+        months_since_last_delinquency = 900
+        missing_months_since_last_delinquency = 1
+    else:
+        months_since_last_delinquency = st.number_input("Months Since Last Delinquency", min_value=0, value=12)
+        missing_months_since_last_delinquency = 0
 
 st.divider()
 
 calculatepd = st.button("Calculate probability of Default")
 
+if calculatepd:
+
+    #engineered features in training model
+    missing_annual_income = 0
+    credit_history_to_age = months_since_oldest_account / (age *12)
+    hard_inquiries_delinquencies_raw = num_hard_inquiries * num_delinquencies
+    hard_inquiries_delinquencies = pd.cut(
+        [hard_inquiries_delinquencies_raw],
+        bins=[-1, 0, 2, 6, float('inf')],
+        labels=[0, 1, 2, 3]
+    )[0]
+
+    hard_inquiries_delinquencies = int(hard_inquiries_delinquencies)
+    rate_dti_burden = interest_rate * dti_ratio
+    rate_to_age = interest_rate * (age + 1)
+
+    #log transforms
+    log_annual_income = np.log1p(annual_income)
+    log_loan_amount             = np.log1p(loan_amount)
+    log_total_revolving_balance = np.log1p(total_revolving_balance)
+    log_interest_to_income      = np.log1p(interest_rate / (annual_income + 1))
+    log_num_hard_inquiries_6mo  = np.log1p(num_hard_inquiries)
+    log_num_delinquencies_2yr   = np.log1p(num_delinquencies)
 
 
+input_df = pd.DataFrame([{"age": age,
+        "employment_length_years": employment_length,
+        "num_open_accounts": num_open_accounts,
+        "credit_utilisation_pct": credit_utilisation,
+        "interest_rate": interest_rate,
+        "months_since_last_delinquency": months_since_last_delinquency,
+        "pct_accounts_current": pct_accounts_current,
+        "missing_annual_income": missing_annual_income,
+        "missing_months_since_last_delinquency": missing_months_since_last_delinquency,
+        "credit_history_to_age": credit_history_to_age,
+        "hard_inquiries_delinquencies": hard_inquiries_delinquencies,
+        "rate_dti_burden": rate_dti_burden,
+        "rate_to_age": rate_to_age,
+        "log_annual_income": log_annual_income,
+        "log_loan_amount": log_loan_amount,
+        "log_total_revolving_balance": log_total_revolving_balance,
+        "log_interest_to_income": log_interest_to_income,
+        "log_num_hard_inquiries_6mo": log_num_hard_inquiries_6mo,
+        "log_num_delinquencies_2yr": log_num_delinquencies_2yr,
+    }])
+
+
+pd_score = model.predict_proba(input_df)[0][1]
