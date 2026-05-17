@@ -7,6 +7,7 @@ import sys, os
 from joblib import load
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import (roc_auc_score, roc_curve, confusion_matrix, classification_report, ConfusionMatrixDisplay)
+from scipy.stats import ks_2samp
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
 model_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "models", "logistic_regression_v2.pkl")
@@ -287,7 +288,7 @@ e2.metric(label="Gini Coefficient", value=f"{gini:.4f}")
 e3.metric(label="Benchmark AUC", value="0.6800")
 e4.metric(label="AUC Lift", value=f"{auc_lift:.4f}")
 
-tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs(["Performance", "Threshold analysis", "Feature effects", "Risk Separation", "Model equation", "Benchmarking"])
+tab1, tab2, tab3, tab4, tab5 = st.tabs(["Performance", "Threshold analysis", "Feature effects", "Risk Separation", "Benchmark vs Model"])
 
 with tab1:
 
@@ -376,6 +377,119 @@ with tab2:
             )
             
 with tab3:
-
     
+    st.markdown("### Feature Coefficients")
+    st.markdown("Coefficients represent the weight each feature has in the model. "
+                "Positive coefficients increase the probability of default, negative decrease it.")
 
+    # Extract coefficients
+    coef_df = pd.DataFrame({
+        "Feature":     X_test.columns,
+        "Coefficient": model.coef_[0]
+    })
+
+    # Sort by absolute value
+    coef_df["Abs"] = coef_df["Coefficient"].abs()
+    coef_df = coef_df.sort_values("Abs", ascending=True)
+
+    # Colour: red for positive, green for negative
+    colours = ["#e05252" if c > 0 else "#00d084" for c in coef_df["Coefficient"]]
+
+    fig, ax = plt.subplots(figsize=(8, 6))
+    ax.barh(coef_df["Feature"], coef_df["Coefficient"], color=colours)
+    ax.axvline(0, color="white", linewidth=0.8, linestyle="--")
+    ax.set_xlabel("Coefficient Value")
+    ax.set_title("Logistic Regression Coefficients")
+
+    fig.patch.set_facecolor("#0B0F14")
+    ax.set_facecolor("#111827")
+    ax.tick_params(colors="white")
+    ax.xaxis.label.set_color("white")
+    ax.yaxis.label.set_color("white")
+    ax.title.set_color("white")
+    for spine in ax.spines.values():
+        spine.set_edgecolor("#374151")
+
+    st.pyplot(fig)
+
+    st.divider()
+
+    # Table
+    st.markdown("#### Coefficient Table")
+    coef_table = coef_df[["Feature", "Coefficient"]].sort_values("Coefficient", ascending=False)
+    coef_table["Direction"] = coef_table["Coefficient"].apply(
+        lambda x: "↑ Increases Risk" if x > 0 else "↓ Decreases Risk"
+    )
+    coef_table["Coefficient"] = coef_table["Coefficient"].round(4)
+    st.dataframe(coef_table, use_container_width=True, hide_index=True)
+
+with tab4:
+    st.markdown("### Score Distribution")
+    st.markdown("Shows how well the model separates defaulters from non-defaulters. "
+                "A good model produces clearly separated distributions.")
+
+    # Split scores by actual class
+    scores_default     = y_pred_proba[y_test == 1]
+    scores_nondefault  = y_pred_proba[y_test == 0]
+
+    # Plot
+    fig, ax = plt.subplots(figsize=(8, 5))
+
+    ax.hist(scores_nondefault, bins=50, color="#00d084", alpha=0.5, 
+            label="Non-Default", density=True)
+    ax.hist(scores_default,    bins=50, color="#e05252", alpha=0.5, 
+            label="Default",     density=True)
+
+    ax.axvline(0.3, color="white", linestyle="--", linewidth=1.2, label="Threshold = 0.30")
+    ax.set_xlabel("Predicted Probability of Default")
+    ax.set_ylabel("Density")
+    ax.set_title("Score Distribution — Default vs Non-Default")
+    ax.legend(facecolor="#111827", labelcolor="white", edgecolor="#374151")
+
+    fig.patch.set_facecolor("#0B0F14")
+    ax.set_facecolor("#111827")
+    ax.tick_params(colors="white")
+    ax.xaxis.label.set_color("white")
+    ax.yaxis.label.set_color("white")
+    ax.title.set_color("white")
+    for spine in ax.spines.values():
+        spine.set_edgecolor("#374151")
+
+    st.pyplot(fig)
+
+    st.divider()
+
+    # KS Statistic 
+    st.markdown("#### KS Statistic")
+
+    ks_stat, ks_pvalue = ks_2samp(scores_default, scores_nondefault)
+
+    k1, k2, k3 = st.columns(3)
+    k1.metric("KS Statistic",  f"{ks_stat:.4f}")
+    k2.metric("KS p-value",    f"{ks_pvalue:.2e}")
+    k3.metric("Interpretation", 
+              "Strong" if ks_stat > 0.3 else "Moderate" if ks_stat > 0.2 else "Weak")
+
+    st.divider()
+
+    #  Context 
+    st.markdown("#### What does this mean?")
+    if ks_stat > 0.3:
+        st.success(
+            f"KS = {ks_stat:.4f} — The model strongly separates defaulters from non-defaulters. "
+            f"The two score distributions are clearly distinct, indicating strong discriminatory power."
+        )
+    elif ks_stat > 0.2:
+        st.warning(
+            f"KS = {ks_stat:.4f} — Moderate separation between classes. "
+            f"The model distinguishes risk reasonably well but there is overlap between groups."
+        )
+    else:
+        st.error(
+            f"KS = {ks_stat:.4f} — Weak separation. "
+            f"The model struggles to distinguish defaulters from non-defaulters."
+        )
+
+
+
+ 
