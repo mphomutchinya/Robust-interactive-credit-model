@@ -248,16 +248,15 @@ div[role="menuitem"]:hover {
 """, unsafe_allow_html=True)
 
 def render_sidebar():
-    with st.sidebar:
+   with st.sidebar:
         st.markdown("Credit Interactive Dashboard")
         st.markdown("FNB Dataquest 2026")
         st.divider()
         st.markdown("**Navigation**")
-        st.page_link("main.py",            label="Overview")
-        st.page_link("pages/EDA.py",       label="EDA Tool")
-        st.page_link("pages/PD_NewClient.py", label= "Probability of Default New Client")
-        st.page_link("pages/Model.py",     label="Model Evaluation")
-        st.page_link("pages/Dashboard.py", label="Business Dashboard")
+        st.page_link("Dashboard.py",             label="Business Dashboard")
+        st.page_link("pages/EDA.py",             label="EDA Tool")
+        st.page_link("pages/PD_NewClient.py",    label="Probability of Default New Client")
+        st.page_link("pages/Model.py",           label="Model Evaluation")
         st.divider()
         st.markdown("**Model Info**")
         st.metric("AUC", "0.7867", delta="+0.1867")
