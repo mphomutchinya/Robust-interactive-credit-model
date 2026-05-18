@@ -264,12 +264,12 @@ def render_sidebar():
         st.page_link("pages/Dashboard.py", label="Business Dashboard")
         st.divider()
         st.markdown("**Model Info**")
-        st.metric("AUC", "0.7813", delta="+0.1013")
-        st.metric("Gini", "0.5627")
+        st.metric("AUC", "0.7867", delta="+0.1867")
+        st.metric("Gini", "0.5733")
         st.divider()
         col1, col2 = st.columns(2)
-        col1.metric("Train", "84,274")
-        col2.metric("Test",  "36,084")
+        col1.metric("Train", "84 274")
+        col2.metric("Test",  "36 084")
 
 render_sidebar()
 
@@ -489,6 +489,77 @@ with tab4:
             f"KS = {ks_stat:.4f} — Weak separation. "
             f"The model struggles to distinguish defaulters from non-defaulters."
         )
+
+with tab5:
+
+    st.markdown("### Baseline Comparison")
+    st.markdown("Comparing our logistic regression scorecard against the legacy baseline model.")
+
+    # Comparison Table 
+    st.markdown("#### Performance Metrics")
+
+    comparison_df = pd.DataFrame({
+        "Metric":      ["AUC", "Gini", "Accuracy", "Precision (Default)", "Recall (Default)", "F1 (Default)"],
+        "Baseline":    [0.68,   0.36,   0.79,        0.35,                  0.30,               0.32],
+        "Our Model":   [0.7867 , 0.5733, 0.83,        0.43,                  0.40,               0.42],
+        "Improvement": ["+0.1067", "+0.2133", "+0.04", "+0.08",            "+0.10",            "+0.10]"]
+    })
+
+    st.dataframe(comparison_df, use_container_width=True, hide_index=True)
+
+    st.divider()
+
+    # ── Visual bar comparison 
+    st.markdown("#### AUC Comparison")
+
+    fig, ax = plt.subplots(figsize=(6, 3))
+    bars = ax.barh(
+        ["Baseline", "Our Model", "LightGBM Ceiling"],
+        [0.68, 0.7813, 0.82],
+        color=["#374151", "#F58220", "#00d084"]
+    )
+    ax.set_xlim(0.5, 0.9)
+    ax.set_xlabel("AUC Score")
+    ax.axvline(0.68,   color="#374151", linestyle="--", linewidth=0.8)
+    ax.axvline(0.7867, color="#F58220", linestyle="--", linewidth=0.8)
+    ax.axvline(0.82,   color="#00d084", linestyle="--", linewidth=0.8)
+
+    for bar, val in zip(bars, [0.68, 0.7813, 0.82]):
+        ax.text(val + 0.002, bar.get_y() + bar.get_height() / 2,
+                f"{val:.4f}", va="center", color="white", fontsize=10)
+
+    fig.patch.set_facecolor("#0B0F14")
+    ax.set_facecolor("#111827")
+    ax.tick_params(colors="white")
+    ax.xaxis.label.set_color("white")
+    ax.yaxis.label.set_color("white")
+    ax.title.set_color("white")
+    for spine in ax.spines.values():
+        spine.set_edgecolor("#374151")
+
+    st.pyplot(fig)
+
+    st.divider()
+
+    # Feature engineering contribution 
+    st.markdown("#### What drove the improvement?")
+
+    contributions = {
+    "Log Transforms": "Compressing skewed features like annual income and loan amount reduced the influence of extreme outliers.",
+    "Interaction Features": "rate_to_age and rate_dti_burden captured combined risk signals that neither interest rate nor age/DTI could express independently.",
+    "Missing Value Flags": "Treating missingness as a signal (missing_annual_income, missing_months_since_last_delinquency) allowed the model to learn that unknown data itself correlates with default risk.",
+    "Hard Inquiries Binning": "Binning hard_inquiries × delinquencies into risk tiers (0–3) reduced noise and made the interaction term more stable.",
+    "Multicollinearity Removal": "Dropping highly correlated features (dti_ratio, months_since_oldest_account) reduced redundancy and improved coefficient stability.",
+    "Delinquency Recency Bucketing": "Converting months_since_last_delinquency into ordinal risk buckets (0=never delinquent, 3=most recent) produced a clean monotonic relationship with default rate — from 8% to 29%.",
+    "Sentinel Value Imputation": "Filling missing months_since_last_delinquency with 900 preserved the distinction between never-delinquent and historically-delinquent applicants, avoiding information loss from standard imputation.",
+    "Credit History to Age Ratio": "Combining months_since_oldest_account and age into a single ratio resolved the 0.95 multicollinearity between them while creating a more meaningful feature — how long relative to their life has the applicant had credit.",
+    "Outlier Capping": "IQR-based capping on heavily skewed columns like annual_income and total_revolving_balance prevented extreme values from distorting the logistic regression decision boundary.",
+    "Low Predictive Feature Removal": "Dropping categorical variables with IV below 0.02 (region, application_dow, email_domain_type) and uninformative columns (phone_verified, months_at_current_address, branch_code_id) reduced noise and simplified the model."
+}
+
+    for title, desc in contributions.items():
+        with st.expander(f"**{title}**"):
+            st.write(desc)
 
 
 
